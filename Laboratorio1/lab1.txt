@@ -1,0 +1,63 @@
+
+1. Crear una carpeta llamada AS en vuestro directorio raiz de usuario.
+
+	cd ~
+	mkdir AS
+
+2. Entrar dentro de la carpeta y comprobar que el directorio coincide con el contenido de la variable de entorno PWD.
+
+	cd AS
+	echo $PWD
+
+3. Instalar cal con el comando apt install ncal. Utilizar cal para mostrar un calendario y redirigir la salida a un fichero de texto. Comprobar que ese fichero se crea correctamente y que su contenido es el esperado.
+
+	sudo apt install ncal
+	cal > cal.txt
+	cat cal.txt
+
+4. Copiar el fichero recién creado al directorio raíz del usuario.
+
+	cp cal.txt ~
+
+5. Moverse al directorio raíz del usuario y listar en formato extendido (parámetro -l) los directorios y archivos presentes. Redirigir esa información a un fichero.
+
+	cd ~	
+	ls -l
+	ls -l > files.txt
+
+6. Listar los 5 ficheros más nuevos de la carpeta /etc (que no sean carpetas).
+
+	ls -tp /etc | grep -v /$ | head -5
+
+7. Cambiar los permisos del fichero creado con información del calendario para que sólo el usuario propietario tenga capacidad de leer y escribir.
+
+	chmod 600 cal.txt
+	ls -l
+	total 4
+
+8. Cambiar permisos para evitar que ningún otro usuario pueda acceder nuestro directorio raíz.
+
+	chmod -R o-rwx $HOME
+	chmod -R g-rwx $HOME
+
+9.Comprobar cuántos usuarios hay en el sistema y cual es el nuestro Shell de inicio.
+
+	wc -l /etc/passwd #Numero de usuarios del sistema
+	grep "$USER" /etc/passwd | cut -d ":" -f 7
+
+10. Comprobar cuándo y desde donde accediste la última vez al sistema.
+
+	last
+
+11. Comprimir en un archivo .tar.gz los contenidos del directorio $HOME. Descomprimirlos /tmp y comprobar que se ha hecho correctamente.
+
+	tar -czvf home.tar.gz $HOME
+	tar -xzvf home.tar.gz /tmp
+
+12. Como usuario “root”, buscar todos los archivos que sean propiedad de tu usuario en el sistema (desde el directorio raíz /) y listarlos en forma extendida (con toda la información).
+
+	sudo find / -type f -user
+
+13. Como usuario “root”, mostrar las últimas 30 líneas de /var/log/syslog.
+
+	sudo tail -n 30 /var/log/syslog
