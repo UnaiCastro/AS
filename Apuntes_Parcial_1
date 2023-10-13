@@ -1,0 +1,277 @@
+---HISTORIAL---
+vim .bashrc
+  shopt -s histappend                      # append to history, don't overwrite it
+  export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
+
+source .bashrc
+.bash_history > historia.txt
+
+---COPIAR DE GOOGLE CLOUD A MI PC---
+scp unai@IP:/home/unai/mifichero.tar.gz /home/unai/Escritorio
+
+---1.1.ADMINISTRACIÓN EN LINUX---
+-Listar sólo ficheros --> ls -F | grep /
+-Listar en orden de modificación --> ls -lt
+-Comprimir:
+  tar -cvf name.tar /dir
+  tar -cvzf name.tar.zp /dir
+-Descomprimir:
+  tar -xvf name.tar     o     tar -xvf name.tar -C /dir
+  tar -xvzf name.tar    o     tar -xvzf name.tar -C /dir
+-Variable de entorno --> export VAR="value"
+-Modificar extensión --> mv $file "${file.txt}".t
+-Sustituir palabra --> sed -i "s/PAL/$palsustituta" $ficherosustituir.txt
+-Ordenar por separador --> sort -t ':' -k2 /fich
+
+---1.2.SISTEMAS DE FICHEROS---
+
+-FIO:
+- sudo apt install fio
+
+- https://docs.gitlab.com/ee/administration/operations/filesystem_benchmarking.html
+
+- sudo fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --bs=4k --iodepth=64 --readwrite=randrw --rwmixread=75 --size=512MB --filename=/discoExt4/ficheroPruebas1
+
+-CREAR PARTICIÓN Y MONTARLA :
+  lsblk -e7
+  sudo cfdisk /dev/sdb					(Interfaz para gestionar particiones)
+  sudo mkfs.ext3 /dev/sdb1				(Formatearla como EXT3)
+  sudo mkdir /disco1
+  sudo mount -t ext3 /dev/sdb1 /disco1			(Montarla en el directorio /disco1)
+  sudo cp -r /var* /disco1				(Copiar el contenido de /var en el directorio /disco1)
+  sudo rezize2fs -M /dev/sdb1			
+  sudo umount /disco1
+  
+-PARTICIÓN PERMANENTE :
+  lsblk -e7
+  sudo cfdisk /dev/sdb
+  sudo mkfs.ext3 /dev/sdb1
+  sudo mkdir /disco1
+  sudo cp /etc/fstab /etc/fstab.backup
+  sudo blkid /dev/sdb1  (UUID)				(Obtener el UUID de la particion)
+  sudo vim /etc/fstab
+    UUID=X /disco1 etx3 discard,defaults,nofail 0 2
+
+-VOLÚMENES :
+  -sudo vgcreate volumen1 /dev/sdb1 /dev/sdb2		(Crear un grupo de volumnes con varios volumenes fisicos)
+  -sudo lvcreate volumen1 -l 100%FREE -n volumen1	(Creacion de un volumen logico)
+  -sudo mkfs.ext3 /dev/volumen1/volumen1		(Formatear volumen como EXT3)
+  -sudo mkdir /miVol
+  -sudo mount -t ext3 /dev/volumen1/volumen1 /miVol	(Montar volumen en el directorio /miVol)
+  
+  -sudo pvcreate /dev/sdb3				(Crear volumen fisico con una partición)
+  -sudo vgextend volumen1 /dev/sdb3			(Extender el grupo de volumenes)
+  -sudo umount /miVol
+  -sudo lvremove /dev/volumen1/volumen1			(Eliminar un volumen lógico)
+  -sudo vgremove volumen				(Eliminar un grupo de volumenes)
+
+-RAID:
+  -sudo apt install mdadm rsync initramfs-tools -y
+  -sudo mdadm -C /dev/md0  -l raid(1-5) -n 2 /dev/sdb1 /dev/sdb2
+  -sudo mdadm --detail /dev/md0				(Para comprobar que este bien)
+  -sudo mkfs.ext3 /dev/md0
+  -sudo mkdir /miRaid
+  -sudo mount -t ext3 /dev/md0 /miRaid
+  -sudo cp -r /var* /miRaid
+  -sudo mdadm /dev/md0 -f /dev/sdb1    			(Simular fallo)
+  -sudo mdadm /dev/md0 -r /dev/sdb1    			(Eliminar disco roto)
+  -sudo mdadm /dev/md0 -a /dev/sdb2    			(Añadir el otro disco)
+  -cat /proc/mdstat					(Monitorizar la reparacion)
+  -sudo umount /miRaid
+  -sudo mdadm --stop /dev/md0				(Eliminar raid)
+  -sudo mdadm --remove /dev/md0				(Eliminar raid)
+
+-RSNAPSHOT:
+  -sudo apt install rsync rsnapshot
+  -sudo cp /etc/rsnapshot.conf /etc/rsnapshot.conf.default
+  -sudo vim /etc/rsnapshot.conf
+	
+	a) Direcotorio para almacenar copias de seguridad --> /backups
+	
+	# All snapshots will be stored under this root directory.#
+	snapshot_root   /backups/
+
+	b) Niveles de copia e intervalos:
+		i. "horaria", 24
+		ii. "diaria", 7
+		iii. "semanal", 4
+		
+	# BACKUP LEVELS / INTERVALS #
+	retain hourly 24
+	retain daily 7
+	retain weekly 4
+	
+	c) Directorios a guardar (Todos los que se guardan en el directorio /backups): /home, /etc, /var/log
+	
+	# BACKUP POINTS / SCRIPTS #
+	backup /home/ localhost/
+	backup /etc/ 	localhost/
+	backup /var/log/ localhost/
+	
+  -sudo rsnapshot configtest		(Verificar que la configuracion es correcta)
+  -sudo rsnapshot -t hourly 		(Realizar una copia tipo horaria)
+  -sudo rsnapshot-diff /dir1 /dir2
+  
+---1.3.MONITORIZACIÓN---
+  -Prioridad (PR) --> 20 + NI
+  -NI --> [-20..19]
+  -top -o PR			(Ordenar PR)
+  
+-PS:
+- ps				(Obtener el numero de procesos en ejecucion del sistema)
+- ps -U root			(Obtener el numero de procesos en ejecucion que pertenezcan a root)
+
+-STRESS-NG:
+  -sudo apt install stress-ng
+  -stress-ng -c1 -t20 				(nucleos, segundos)
+  -kill -STOP PID				(Pausar)
+  -kill -CONT PID				(Reanudar)
+  -renice -n -20 -p PID				(Reducir prioridad al mínimo)
+  -ulimit -t300 (5 minutos)			(Limitar)
+
+-CRONTAB :
+  -sudo crontab -u root -e
+  -https://tecadmin.net/crontab-in-linux-with-20-examples-of-cron-schedule/
+
+-QUOTAS :
+  -sudo apt install quota
+  -sudo apt install quotatool
+  -sudo apt install linux-image-extra-virtual
+  -sudo apt install linux-modules-extra-gcp
+  -sudo cfdisk /dev/sdb
+  -sudo mkfs.ext4 -O quota /dev/sdb1
+  -sudo mkdir /disco1
+  -sudo vim /etc/fstab
+    /dev/sdb1 /disco1 ext4 defaults,usrquota,grpquota 0 0
+  
+  -sudo mount -O remount /disco1
+  -sudo quotaon -v /disco1
+  -sudo edquota -u marcos (En KB)
+  -sudo chown marcos:marcos /disco1
+  -quota
+  -sudo quotaoff -v /disco1
+
+-LOGS :
+  -logger "Hola"				(Enviar mensaje a /var/log/syslog)
+  -logger -p debug "Hola buenas tardes"		(Enviar mensaje con prioridad debug)  
+  -Nivel debug:
+    sudo vim /etc/rsyslog.d/50-default.conf
+      ssh.debug /var/log/ssh.log
+    sudo service rsyslog restart
+  
+
+-BENCHMARKS :
+  -wget https://tu-dresden.de/zih/forschung/ressourcen/dateien/projekte/firestarter/FIRESTARTER_2.0.tar.gz
+  -sudo mkdir firestarter
+  -sudo tar -xvzf FIRESTARTER_2.tar.gz /firestarter 
+  -cd /firestarter
+  -./FIRESTARTER -t 30 -r			(Ejecutar durante 30 segundos)
+  -./FIRESTARTER -t 30 -i x			(Ejecuta X instruccion)
+  -Muestra los tipos disponibles en la CPU --> ./FIRESTARTER -a
+
+---2.1.SERVICIOS EN RED---
+-NFS:
+  -sudo apt update
+  -sudo apt install nfs-common (Cliente)
+  -sudo apt install nfs-kernel-server nfs-common (Servidor)
+  
+  -Compartir una carpeta (Servidor):
+    -sudo mkdir /compartir
+    -sudo vim /etc/exports
+      /compartir *(ro,root_squash,no_subtree_check)
+    -sudo chown nobody:nogroup /compartir
+    -sudo exportfs -ra
+    -sudo exportfs -v
+  
+  -Montar la carpeta en /dir (Cliente):
+    -sudo mount -t nfs IPSERVIDOR:/compartir /dir
+    -df -h
+  -Cambiar permisos para que se pueda editar (Servidor):
+    -sudo chown marcos:marcos /compartir
+
+-MOSQUITTO:
+
+**(Cliente)**
+$ mosquitto_sub -h localhost -t "miDemoMQTT" 	(Suscribirse)
+$ mosquitto_pub -h 34.88.11.81 -t "edificio/#" -v 
+(edificio/pasillo "mensaje")
+
+**(Servidor)**
+$ mosquitto_pub -h localhost -t "miDemoMQTT" -m "Hola Mundo IoT"
+$ mosquitto_pub -h 34.88.11.81 -t "miDemoMQTT" -m "Hola prueba"
+$ mosquitto_pub -h 34.88.11.81 -t "edificio/#" -m "Hola prueba"
+
+$ mosquitto_pub -h IP -t "ciudades/araba" -m "Gasteiz" -r		(Mensaje retenido)
+
+---WHILE---
+-i=$((i+1))
+-Cuando reciba mensaje --> mosquitto_sub -h IP -t "topic" | while read value; do
+  -$value
+  
+-- EJERCICIO 2 -- (Prueba Examen)
+
+$ lsblk -e7		(Comprobar el nombre de la particion)
+$ sudo cfdisk /dev/sdb	(Interfaz de gestion de particiones)
+
+(Formateo de las 3 particiones): 
+$ sudo mkfs.ext4 /dev/sdb1 
+$ sudo mkfs.ext4 /dev/sdb2
+$ sudo mkfs.btrfs /dev/sdb3
+
+(Montaje de cada una de las particiones)
+$ sudo mkdir /disco1
+$ sudo mkdir /disco2
+$ sudo mkdir /disco3
+
+$ sudo mount -t ext4 /dev/sdb1 /disco1
+$ sudo mount -t ext4 /dev/sdb2 /disco2
+$ sudo mount -t btrfs /dev/sdb3 /disco3
+
+$ sudo cp -r /var/log* /disco2		(Copiar contenido de /var/log en /disco2)
+$ cd /disco2
+$ ls
+
+(Montaje permanente de Btrfs) :
+$ sudo blkid /dev/sdb3		(Obtenemos el UUID)
+$ sudo vim /etc/fstab
+	UUID="958c6cfc-7a90-423f-b3ef-58dd7aabdbc5"     /disco3 btrfs   discard,defaults,nofail 0       2
+
+(Activar sistema de quotas para /disco1 y fijar los siguientes limites para el usuario actual):
+
+$ sudo umount /disco1
+$ sudo mkfs.ext4 -O quota /dev/sdb1
+$ sudo vim /etc/fstab
+	/dev/sdb1       /disco1 ext4    defaults,usrquota,grpquota      0       0
+
+$ sudo mount -O remount /disco1		(Montar en el directorio --Ejecuta lo escrito en /etc/fstab --)
+$ mount | grep /dev/sdb			(Comprobar que se haya montado correctamente)
+$ sudo edquota -u unai
+$ sudo chown unai:unai /disco1		(Le damos permisos sobre el directorio donde esta montada la particion con quotas para que pueda ejecutarlo, editarlo ....)
+$ sudo edquota -T -u unai			(Ahora nos dejaria editar el tiempo de gracia)
+$ sudo quotaon  /disco1
+$ cd /disco1
+$ dd if=/dev/random of=hola.out bs=600MB count=1000
+	dd: error writing 'hola.out': Disk quota exceeded
+	1+0 records in
+	0+0 records out
+	204791808 bytes (205 MB, 195 MiB) copied, 5.80738 s, 35.3 MB/s
+	
+	
+-- SCRIPT LAB3 (MAYOR GFLOPS) --
+
+#!/bin/bash
+
+maximo=0
+echo "Entrando a Firestarter"
+cd /home/unai/Firestarter
+for i in {1..3}; do
+        echo "Ejecutando la funcion $i --> "
+        ./FIRESTARTER -t 30 -r -i $i > /home/unai/fire.txt
+        dato=`grep -w "GFLOPS" /home/unai/fire.txt | cut -d ' ' -f5`
+        
+        if [ $dato > $maximo ]; then
+                maximo=$dato
+        fi
+done
+echo "El mayor es: $maximo GFLOPS"
+
