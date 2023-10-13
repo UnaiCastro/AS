@@ -1,3 +1,4 @@
+scp 
 tar -czvf mi_carpeta.tar.gz mi_carpeta
 
 lsblk -e7
