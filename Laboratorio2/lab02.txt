@@ -1,0 +1,219 @@
+1 Configuracion del entorno
+2 Gestion basica
+1. En el disco recién creado, crear 4 particiones de 1GB cada una y formatearlas: una de ellas será ext3, otra btrfs, otra xfs y última ext4
+
+	sudo cfdisk /dev/sdb
+	sudo mkfs.ext3 /dev/sdb1
+	sudo mkfs.btrfs /dev/sdb2
+	sudo mkfs.xfs /dev/sdb3
+	sudo mkfs.ext4 /dev/sdb4
+
+2. Configurar un montaje automático de las particiones (al arranque de la máquina virtual) en /disco[X] donde X es 1, 2, 3, 4. Se recomienda seguir estos1 pasos. Verificar que los montajes se mantienen al reiniciar la máquina. En caso de que la MV no arranque o no permita acceso vía SSH por problemas de configuración, se puede iniciar una terminal mínima llamada “consola serie” que provee acceso root para resolver incidencias2.
+
+	mkdir /tmp/disco1
+	mkdir /tmp/disco2
+	mkdir /tmp/disco3
+	mkdir /tmp/disco4
+	sudo nano /etc/fstab
+
+3. ¿Cual de los sistemas de ficheros creados ocupa mas espacio?
+
+	df -h
+
+4. ¿Es psobile acceder a una particion ext3 que ha sido montada como ext4? ¿Y al reves? ¿Por que?
+
+	Solo se puede montar un sistema ext3 como un ext4 haciendo que el ext4 tenga las limitaciones de ext3. Para montar un sistema ext3 a ext4 debemos hacer ciertas conversiones más.
+
+5. Desmontar y borrar las 3 ultimas particiones. Crea una unica particion ext4 de 3GB
+
+	sudo umount /dev/sdb[2,3,4]
+	sudo cfdisk /dev/sdb
+
+6. Copiar el contenido del directorio /var en la nueva particion ext4 que acabas de crear. Despues redimensionar la particion para que sea lo mas pequeña posible
+
+	sudo cp -r /var/* /tmp/disco1
+
+7. Eliminar la configuracion de montaje automatico realizada en el 2º paso
+
+	sudo nano /etc/fstab
+
+3 Comparativa de rendimiento
+3.1 Borrar las particiones creadas en el disco en la sección anterior. En este ejercicio nos referiremos a este disco como balanceado
+
+	sudo umount /dev/sdb1
+	sudo cfdisk /dev/sdb
+
+3.2 Añadir un nuevo disco de 10 GB de tipo “SSD” a la máquina virtual. En este ejercicio nos referiremos a este disco como SSD
+3.3 En ambos discos, crear 1 partición de 4 GB y formatearla como Ext4. Montar la partición del disco balanceado en el directorio /discoBalanceado y la partición del disco SSD en el directorio /discoSSD. No es necesario configurar los montajes para que se realicen en el arranque del sistema
+
+	sudo cfdisk /dev/sdb
+	sudo cfdick /dev/sdc
+	sudo mkfs.ext4 /dev/sdb1
+	sudo mkfs.ext4 /dev/sdc1
+	mkdir /tmp/discoBalanceado
+	mkdir /tmp/discoSSD
+	sudo mount -t ext4 /dev/sdb1 /tmp/discoBalanceado
+	sudo mount -t ext4 /dev/sdc1 /tmp/discoSSD
+	sudo chown $USER:$USER /tmp/disco*
+
+3.4 Revisar la 1ª sección de este artículo3 para aprender a realizar una prueb de rendimiento con fio
+3.5 Instalar fio en el sistema siguiendo el comando que se indica en el artículo
+
+	apt install fio
+
+3.6 Utilizar fio para realizar la siguiente prueba
+	a Creación de un fichero de contenido aleatorio de 1 GB
+
+		fio --name=testBalance --size=1G --filename=/tmp/discoBalanceado/test
+		fio --name=testSSD --size=1G --filename=/tmp/discoSSD/test
+
+	b Mezcla de 75% y 25 % entre operaciones de lectura y escritura
+
+		fio --name=testBalance --rwmixread=75 --size=1G --filename=/tmp/discoBalanceado/test
+		fio --name=testSSD --rwmixread=75 --size=1G --filename=/tmp/discoSSD/test
+
+	c Resto de parámetro por defecto (cómo indicados en el ejemplo del artículo). Esta prueba se debe realizar con ambos discos. El nombre del fichero que se utilice es indiferente, pero debe estar dentro de cada carpeta /disco correspondiente en cada prueba. Los valores más representativos de las pruebas son las métricas de velocidad de lectura (READ) y escritura (WRITE), que se encuentran entre las últimas líneas que genera fio. Estos valores se indican en kB/s o MB/s, ¿qué diferencia hay entre ambos discos?
+
+		fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=testBalance --bs=4k --iodepth=64 --readwrite=randrw --rwmixread=75 --size=1G --filename=/tmp/discoBalanceado/test
+		fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=testSSD --bs=4k --iodepth=64 --readwrite=randrw --rwmixread=75 --size=1G --filename=/tmp/discoSSD/test
+3.7 Repetir la prueba anterior, esta vez utilizando una mezcla de 50% de operaciones de lectura y 50% de operaciones de escritura. ¿Varían los resultados respecto a la 1ª prueba?
+
+	fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=testBalance --bs=4k --iodepth=64 --readwrite=randrw --rwmixread=50 --size=1G --filename=/tmp/discoBalanceado/test
+	fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=testSSD --bs=4k --iodepth=64 --readwrite=randrw --rwmixread=50 --size=1G --filename=/tmp/discoSSD/test
+
+3.8 Revisar el precio de los discos de tipo balanceado y SSD en Google Cloud. ¿La diferencia de precio es proporcional con la diferencia de rendimiento?
+
+	La mejora es de alrededor de veinte veces mayor lectura y escritura para el SSD mientras que el precio es 3-4 veces mayor por lo que dependiendo el caso podria salir rentable
+
+3.9 Desmontar y eliminar el disco de tipo SSD
+
+	sudo umount /dev/sdc1
+
+4 Gestion avanzada
+4.1 Borrar las particiones creadas en las secciones anteriores en el disco
+
+	sudo umount /dev/sdb1
+	sudo cfdisk /dev/sdb
+
+4.2 Añadir un nuevo disco de 10 GB de tipo balanceado a la máquina virtual
+4.3 Crear 2 particiones de 3 GB en cada disco. Crear un volumen lógico LVM con 3 de las 4 particiones. Crear una partición ext4 en el volumen usando el 100% de espacio
+
+	sudo cfdisk /dev/sdb
+	sudo cfdisk /dev/sdc
+	sudo vgcreate grupoVol /dev/sdb1 /dev/sdb2 /dev/sdc1
+	sudo lvcreate grupoVol -l 100%FREE -n miVolumen
+	sudo mkfs.ext4 /dev/grupoVol/miVolumen
+
+4.4 Montar el sistema de ficheros en un directorio y comprobar su estado. Para ello, copiar alguno de los directorios del sistema operativo a él
+
+	mkdir /tmp/lvmFolder
+	sudo mount -t ext4 /dev/grupoVol/miVolumen /tmp/lvmFolder
+	sudo cp -r /var/* /tmp/lvmFolder
+
+4.5 Añadir la 4ª partición al volumen lógico y extender el tamaño del sistema de ficheros para que ocupe el total del volumen. Comprobar que los datos copiados en el paso anterior siguen estando
+
+	sudo vgextend grupoVol /dev/sdc2
+	sudo lvextend /dev/grupoVol/miVolumen /dev/sdc2
+	sudo resize2fs /dev/grupoVol/miVolumen
+	ls /tmp/lvmFolder/
+
+4.6 Borrar el volumen lógico recién creado (utilizar los comandos LVM apropiados)
+
+	sudo umount /dev/grupoVol/miVolumen
+	sudo lvremove /dev/grupoVol/miVolumen
+
+4.7 Crear un sistema RAID 5 con 3 de las particiones. Crear un sistema de ficheros ext4 para el sistema RAID 5 y hacerlo accesible. Copiar el contenido de la carpeta /var a la carpeta del sistema RAID
+
+	sudo mdadm --create /dev/md0 --verbose --level=5 --raid-devices=3 /dev/sdb1 /dev/sdb2 /dev/sdc1
+	sudo mkfs.ext4 /dev/md0
+	mkdir /tmp/raidFolder
+	sudo mount -t ext4 /dev/md0 /tmp/raidFolder
+	sudo cp -r /var/* /tmp/raidFolder
+
+4.8 Simular un fallo en el tercer disco (parámetro -f). Recuperar la información perdida usando la partición que quedó libre.
+
+	sudo mdadm /dev/md0 -f /dev/sdc1
+	sudo mdadm /dev/md0 -r /dev/sdc1
+	sudo mdadm /dev/md0 -a /dev/sdc2
+	cat /proc/mdstat
+
+4.9 Desmontar y eliminar el dispositivo RAID. Eliminar el disco creado en el paso 2
+
+	sudo umount /dev/md0
+	sudo mdadm --stop /dev/md0
+	sudo mdadm --zero-superblock /dev/sdb
+
+5 Copias de seguridad
+5.1 Borrar las particiones creadas en la sección anterior en el disco
+
+	sudo cfdisk /dev/sdb
+
+5.2 Crear 1 partición de 4 GB en el disco y formatearla como ext4. Montarla en un directorio llamado /backups.
+
+	sudo cfdisk /dev/sdb
+	sudo mkfs.ext4 /dev/sdb1
+	sudo mount -t ext4 /dev/sdb1 /mnt/backups
+	sudo mkdir /mnt/backups
+	sudo chown $USER:$USER /mnt/backups
+
+5.3 Instalar rsnapshot en el sistema y revisar este documento donde se detalla su configuración
+
+	sudo apt install rsnapshot
+
+5.4 Configurar rsnapshot de la siguiente forma:
+	a Directorio para almacenar las copias de seguridad: /backups
+
+		sudo cp /etc/rsnapshot.conf /etc/rsnapshot.conf.default
+		sudo nano /etc/rsnapshot.conf
+
+		###########################
+		# SNAPSHOT ROOT DIRECTORY #
+		###########################
+
+		# All snapshots will be stored under this root directory.
+		#
+		snapshot_root   /mnt/backups/
+
+	b Niveles de copia e intervalos
+
+		#########################################
+		#     BACKUP LEVELS / INTERVALS         #
+		# Must be unique and in ascending order #
+		# e.g. alpha, beta, gamma, etc.         #
+		#########################################
+
+		retain  hourly  24
+		retain  daily   7
+		retain  weekly  4
+
+	c Directorios a guardar (todos se almacenan en el directorio /backups): /home, /etc y /var/log
+
+		###############################
+		### BACKUP POINTS / SCRIPTS ###
+		###############################
+
+		# LOCALHOST
+		backup  /home/          localhost/
+		backup  /etc/           localhost/
+		#backup /usr/local/     localhost/
+		backup  /var/log        localhost/
+
+5.5 Verificar que la configuración es correcta con el comando rsnapshot configtest.
+
+	rsnapshot configtest
+
+5.6 Realizar una copia de tipo “horaria” y revisar que los contenidos se han copiado correctamente.
+
+	sudo rsnapshot hourly
+	ls /mnt/backups/hourly.0/
+
+5.7 Crear una carpeta y un fichero nuevo en el directorio /home de tu usuario (incluye algo de texto en el fichero). Después, realizar una nueva copia de tipo “horaria”
+
+	mkdir prueba
+	echo "Hola Mundo" > prueba/prueba.txt
+	sudo rsnapshot hourly
+
+5.8 Verificar que la nueva copia se ha hecho correctamente y revisar los cambios entre ambas copias con el comando rsnapshot-diff.
+
+	ls /mnt/backups/hourly.1/
+	sudo rsnapshot-diff -vH /mnt/backups/hourly.0/ /mnt/backups/hourly.1/

@@ -1,0 +1,5 @@
+lsblk -e7
+
+sudo nano /etc/fstab
+    #<file sys>             <mount point>   <type>  <options>    <dump>  <fsck>
+    /dev/sdb2               /discoBtrfs     btrfs   defaults       0       0
