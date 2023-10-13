@@ -1,3 +1,4 @@
+mv mi_archivo.txt /ruta/a/otra_carpeta/
 sudo cp -r /home/unai/.bash_history /home/unai/unai_history
 scp unai@34.41.162.30:/home/unai/22761484V_Unai_Castro.tar.gz /home/unai/Escritorio
 tar -czvf mi_carpeta.tar.gz mi_carpeta
